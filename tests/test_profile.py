@@ -6,6 +6,7 @@ import unittest
 import xml.etree.ElementTree as ET
 from datetime import date, timedelta
 from pathlib import Path
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("update", ROOT/"scripts/update_activity.py")
@@ -70,6 +71,18 @@ class ProfileTests(unittest.TestCase):
             self.assertTrue((ROOT/path).is_file(), path)
         self.assertIn("Desarrollo, investigación y diseño de interfaces de nueva generación", readme)
         self.assertNotIn("Ideas que se convierten en sistemas", readme)
+
+    def test_social_rasters_have_opaque_black_edges(self):
+        files = list((ROOT/"assets").glob("social-*.png"))
+        self.assertEqual(len(files), 12)
+        for path in files:
+            with self.subTest(file=path.name), Image.open(path) as image:
+                rgba = image.convert("RGBA")
+                self.assertEqual(rgba.getchannel("A").getextrema(), (255, 255))
+                width, height = rgba.size
+                edges = [(x, 0) for x in range(width)] + [(x, height-1) for x in range(width)]
+                edges += [(0, y) for y in range(height)] + [(width-1, y) for y in range(height)]
+                self.assertTrue(all(rgba.getpixel(point) == (0, 0, 0, 255) for point in edges))
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ from html import escape
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from cairosvg import svg2png
 from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
 
@@ -72,6 +73,12 @@ class SVG:
             f'<defs>{"".join(self.defs.values())}</defs>'
             f'<rect width="{self.width}" height="{height}" fill="#000000"/>'
             f'<g transform="translate(0 {padding})">{"".join(self.parts)}</g></svg>\n', encoding="utf-8")
+        if name.startswith("social-"):
+            # Opaque raster edges avoid SVG viewport seams at fractional CSS widths.
+            # Keep the editable SVG and regenerate its 3x PNG in every refresh.
+            svg2png(url=str(OUT/name), write_to=str((OUT/name).with_suffix(".png")),
+                    output_width=self.width*3, output_height=height*3,
+                    background_color="#000000")
 
 
 def abstract(s: SVG, mobile=False, ribbon=False):
