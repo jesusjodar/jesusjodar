@@ -20,7 +20,7 @@ class ProfileTests(unittest.TestCase):
             "repositories": {"nodes": [
                 {"nameWithOwner": "jesusjodar/jesusjodar", "defaultBranchRef": {"target": {"history": {"nodes": [
                     {"oid": "bot", "messageHeadline": "automated update", "committedDate": "2026-10-25T10:00:00Z", "url": "https://github.com/a"}]}}}},
-                {"nameWithOwner": "jesusjodar/Matriz", "defaultBranchRef": {"target": {"history": {"nodes": [
+                {"nameWithOwner": "jesusjodar/jesusjodar.github.io", "defaultBranchRef": {"target": {"history": {"nodes": [
                     {"oid": "real", "messageHeadline": "Fix <WebGL> & capture", "committedDate": "2026-10-24T10:00:00Z", "url": "https://github.com/b"}]}}}}
             ]}}}}
 
@@ -36,7 +36,7 @@ class ProfileTests(unittest.TestCase):
 
     def test_assets_are_self_contained_valid_svg(self):
         files = list((ROOT/"assets").glob("*.svg"))
-        self.assertEqual(len(files), 16)
+        self.assertEqual(len(files), 20)
         for file in files:
             with self.subTest(file=file.name):
                 doc = ET.parse(file)

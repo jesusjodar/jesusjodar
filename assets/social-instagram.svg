@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="instagram"><title>instagram</title><rect width="64" height="64" fill="#000000"/><rect x="1" y="1" width="62" height="62" fill="none" stroke="#ffffff" stroke-width="2"/><g transform="translate(18 18) scale(1.1666667)" fill="none" stroke="#ffffff" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round">
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="144" viewBox="0 0 180 144" role="img" aria-labelledby="title desc"><title id="title">instagram</title><desc id="desc"></desc><defs></defs><rect width="180" height="144" fill="#000000"/><g transform="translate(58.0 40.0) scale(1.0)"><rect x="1" y="1" width="62" height="62" fill="none" stroke="#ffffff" stroke-width="2"/><g xmlns="http://www.w3.org/2000/svg" transform="translate(18 18) scale(1.1666667)" fill="none" stroke="#ffffff" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round">
   <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
   <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
   <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-</g></svg>
+</g></g></svg>

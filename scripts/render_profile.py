@@ -125,36 +125,41 @@ def about(mobile=False):
 
 def section_header(mobile=False):
     w, pad = (600, 38) if mobile else (1200, 70)
-    s = SVG(w, 145 if mobile else 140, "Lo que construyo", "Proyectos públicos seleccionados")
+    s = SVG(w, 145 if mobile else 140, "Portfolio", "Proyecto destacado")
     s.line(pad, 20, w-pad, 20)
-    s.text("LO QUE CONSTRUYO.", pad, 101, 65 if mobile else 72, "heading", max_width=w-2*pad)
+    s.text("PROYECTO DESTACADO.", pad, 101, 65 if mobile else 72, "heading", max_width=w-2*pad)
     s.save("work-mobile.svg" if mobile else "work.svg")
 
 
-def project(kind, mobile=False):
+def project(mobile=False):
     w, pad = (600, 38) if mobile else (1200, 70)
-    matriz = kind == "matriz"
-    h = (405 if mobile else 380) if matriz else (275 if mobile else 215)
-    title = "MATRIZ" if matriz else "PORTFOLIO"
-    s = SVG(w, h, title, "Fondos procedurales para macOS, Windows y web" if matriz else "Portfolio personal interactivo")
-    if matriz:
-        s.raw(f'<defs><clipPath id="card"><rect x="{pad}" y="4" width="{w-pad*2}" height="{h-16}"/></clipPath></defs><g clip-path="url(#card)">')
-        abstract(s, mobile, ribbon=True)
-        s.raw('</g>')
+    h = 275 if mobile else 215
+    s = SVG(w, h, "PORTFOLIO", "Portfolio personal interactivo")
     s.raw(f'<rect x="{pad}" y="4" width="{w-pad*2}" height="{h-16}" fill="none" stroke="#ffffff" stroke-opacity=".3"/>')
     inset = pad+28
-    s.text("01 / VISUAL COMPUTING" if matriz else "02 / IDENTIDAD DIGITAL", inset, 56, 20, max_width=w-2*inset)
-    s.text(title, inset-2, 185 if matriz else 132, 145 if matriz else 90, "heading", max_width=w-2*inset-30)
-    if matriz:
-        for line, y in zip(["Luz, movimiento y formas orgánicas.", "Fondos procedurales para", "macOS, Windows y web."] if mobile else
-                           ["Luz, movimiento y formas orgánicas.", "Fondos procedurales para macOS, Windows y web."], [248, 286, 324]):
-            s.text(line, inset, y, 26, max_width=w-2*inset)
-    else:
-        for i, line in enumerate(["Mi espacio de diseño, desarrollo", "e ideas en la web."] if mobile else ["Mi espacio de diseño, desarrollo e ideas en la web."]):
-            s.text(line, inset, 190+i*36, 26, max_width=w-2*inset)
+    s.text("01 / IDENTIDAD DIGITAL", inset, 56, 20, max_width=w-2*inset)
+    s.text("PORTFOLIO", inset-2, 132, 90, "heading", max_width=w-2*inset-30)
+    for i, line in enumerate(["Mi espacio de diseño, desarrollo", "e ideas en la web."] if mobile else ["Mi espacio de diseño, desarrollo e ideas en la web."]):
+        s.text(line, inset, 190+i*36, 26, max_width=w-2*inset)
     x, y = w-pad-42, 40
     s.raw(f'<path d="M{x-14} {y+14}l18-18m-18 0h18v18" fill="none" stroke="#ffffff" stroke-width="3"/>')
-    s.save(f"{kind}{'-mobile' if mobile else ''}.svg")
+    s.save(f"portfolio{'-mobile' if mobile else ''}.svg")
+
+
+def socials(mobile=False):
+    # Equal-height image segments form one black strip, while each link stays clickable.
+    # At either breakpoint: 20% padding + four 15% buttons + 20% padding = 100%.
+    width, height, button = (90, 144, 54) if mobile else (180, 144, 64)
+    suffix = "-mobile" if mobile else ""
+    icons = json.loads((ROOT/"data/social-icons.json").read_text())
+    for name, markup in icons.items():
+        s = SVG(width, height, name)
+        x, y = (width-button)/2, (height-button)/2
+        s.raw(f'<g transform="translate({x} {y}) scale({button/64})">'
+              '<rect x="1" y="1" width="62" height="62" fill="none" stroke="#ffffff" stroke-width="2"/>'
+              f'{markup}</g>')
+        s.save(f"social-{name}{suffix}.svg")
+    SVG(120 if mobile else 240, height, "").save(f"social-spacer{suffix}.svg")
 
 
 def short_date(value):
@@ -228,8 +233,8 @@ def render(data):
         hero(mobile)
         about(mobile)
         section_header(mobile)
-        project("matriz", mobile)
-        project("portfolio", mobile)
+        project(mobile)
+        socials(mobile)
         activity(data, mobile)
 
 

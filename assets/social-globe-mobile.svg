@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="90" height="144" viewBox="0 0 90 144" role="img" aria-labelledby="title desc"><title id="title">globe</title><desc id="desc"></desc><defs></defs><rect width="90" height="144" fill="#000000"/><g transform="translate(18.0 45.0) scale(0.84375)"><rect x="1" y="1" width="62" height="62" fill="none" stroke="#ffffff" stroke-width="2"/><g xmlns="http://www.w3.org/2000/svg" transform="translate(18 18) scale(1.1666667)" fill="none" stroke="#ffffff" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="10" />
+  <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+  <path d="M2 12h20" />
+</g></g></svg>

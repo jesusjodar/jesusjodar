@@ -41,8 +41,8 @@ def normalize(response, login):
         raise ValueError("GitHub returned no calendar")
     commits = []
     for repo in user["repositories"]["nodes"]:
-        if repo["nameWithOwner"].lower() == f"{login}/{login}".lower():
-            continue  # Keep automated profile refreshes out of the build log.
+        if repo["nameWithOwner"].lower() in {f"{login}/{login}".lower(), f"{login}/Matriz".lower()}:
+            continue  # Respect hidden projects and omit automated profile refreshes.
         branch = repo.get("defaultBranchRef")
         for commit in (branch or {}).get("target", {}).get("history", {}).get("nodes", []):
             commits.append({"repo": repo["nameWithOwner"], "sha": commit["oid"],

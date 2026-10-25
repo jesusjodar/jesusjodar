@@ -2056,13 +2056,6 @@
       "message": "Add Nemotron DFlash recipe, recover benchmark logs and publish multil…",
       "date": "2026-10-24T08:58:09Z",
       "url": "https://github.com/jesusjodar/recipes/commit/0b187ad44fa4132d0063c76332870864d798e725"
-    },
-    {
-      "repo": "jesusjodar/Matriz",
-      "sha": "60fedd35181643dcd6466112d59c897409887f1a",
-      "message": "docs: translate READMEs and release notes into English",
-      "date": "2026-10-17T11:46:28Z",
-      "url": "https://github.com/jesusjodar/Matriz/commit/60fedd35181643dcd6466112d59c897409887f1a"
     }
   ]
 }
