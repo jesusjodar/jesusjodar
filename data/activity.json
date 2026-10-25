@@ -1,0 +1,20 @@
+{
+  "updated_at": "2026-10-25T11:00:00Z",
+  "calendar": null,
+  "commits": [
+    {
+      "repo": "jesusjodar/Matriz",
+      "sha": "60fedd35181643dcd6466112d59c897409887f1a",
+      "message": "docs: translate READMEs and release notes into English",
+      "date": "2026-10-17T11:46:28Z",
+      "url": "https://github.com/jesusjodar/Matriz/commit/60fedd35181643dcd6466112d59c897409887f1a"
+    },
+    {
+      "repo": "jesusjodar/Matriz",
+      "sha": "1e2d97196cdd0629eaf7cc47e8ec2d6a3836b900",
+      "message": "Fix WebGL frame capture race and clarify macOS asset naming",
+      "date": "2026-10-16T18:29:27Z",
+      "url": "https://github.com/jesusjodar/Matriz/commit/1e2d97196cdd0629eaf7cc47e8ec2d6a3836b900"
+    }
+  ]
+}
