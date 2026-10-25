@@ -5,9 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
 from html import escape
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
@@ -145,18 +146,20 @@ def project(mobile=False):
 
 def socials(mobile=False):
     # Equal-height image segments form one black strip, while each link stays clickable.
-    # At either breakpoint: 20% padding + four 15% buttons + 20% padding = 100%.
+    # 5% leading space + four 15% buttons + 35% trailing space = 100%.
+    # An inner 10px / 8px offset aligns the first icon with each panel's text.
     width, height, button = (90, 144, 54) if mobile else (180, 144, 64)
     suffix = "-mobile" if mobile else ""
     icons = json.loads((ROOT/"data/social-icons.json").read_text())
     for name, markup in icons.items():
         s = SVG(width, height, name)
-        x, y = (width-button)/2, (height-button)/2
+        x, y = (8 if mobile else 10), (height-button)/2
         s.raw(f'<g transform="translate({x} {y}) scale({button/64})">'
               '<rect x="1" y="1" width="62" height="62" fill="none" stroke="#ffffff" stroke-width="2"/>'
               f'{markup}</g>')
         s.save(f"social-{name}{suffix}.svg")
-    SVG(120 if mobile else 240, height, "").save(f"social-spacer{suffix}.svg")
+    SVG(30 if mobile else 60, height, "").save(f"social-spacer-left{suffix}.svg")
+    SVG(210 if mobile else 420, height, "").save(f"social-spacer-right{suffix}.svg")
 
 
 def short_date(value):
@@ -179,38 +182,52 @@ def fit_lines(value, max_chars):
     return lines[:2]
 
 
+def activity_window(data):
+    """Fourteen calendar days, including the snapshot day in Spain."""
+    zone = ZoneInfo("Europe/Madrid")
+    end = datetime.fromisoformat(data["updated_at"].replace("Z", "+00:00")).astimezone(zone).date()
+    start = end - timedelta(days=13)
+    calendar = data.get("calendar") or {}
+    days = sorted((day for week in calendar.get("weeks", []) for day in week["contributionDays"]
+                   if start.isoformat() <= day["date"] <= end.isoformat()), key=lambda day: day["date"])
+    commits = [commit for commit in data.get("commits", [])
+               if start <= datetime.fromisoformat(commit["date"].replace("Z", "+00:00")).astimezone(zone).date() <= end]
+    return start, end, days, commits[:3]
+
+
 def activity(data, mobile=False):
-    calendar = data.get("calendar")
-    commits = data.get("commits", [])[:3]
+    start, end, days, commits = activity_window(data)
     w, pad = (600, 38) if mobile else (1200, 70)
-    calendar_height = 300 if mobile else 270
+    calendar_height = 335 if mobile else 215
     row_height = 128 if mobile else 106
-    height = 180 + (calendar_height if calendar else 0) + len(commits)*row_height + 80
-    s = SVG(w, height, "Actividad en GitHub", "Contribuciones visibles y cambios recientes en proyectos públicos. Datos consultados: "+data["updated_at"])
+    height = 180 + (calendar_height if days else 0) + len(commits)*row_height + 80
+    period = f"{start:%d/%m} – {end:%d/%m}"
+    s = SVG(w, height, "Actividad en GitHub · últimas 2 semanas", "Contribuciones visibles y cambios en proyectos públicos del "+period+". Datos consultados: "+data["updated_at"])
     s.line(pad, 20, w-pad, 20)
     s.text("ACTIVIDAD.", pad, 108, 80, "heading")
     y = 155
-    if calendar:
-        weeks = calendar["weeks"]
-        # On mobile show 26 weeks rather than shrinking 53 weeks into unreadable cells.
-        visible = weeks[-26:] if mobile else weeks
-        total = sum(d["contributionCount"] for week in visible for d in week["contributionDays"]) if mobile else calendar["totalContributions"]
+    if days:
+        total = sum(day["contributionCount"] for day in days)
         s.text(f"{total:,}".replace(",", ".")+" contribuciones visibles", pad, y, 30)
-        s.text("Últimas 26 semanas" if mobile else "Últimos 12 meses", pad, y+36, 22)
-        cell = (w-2*pad) / len(visible)
-        grid_y = y+74
-        peak = max((d["contributionCount"] for week in visible for d in week["contributionDays"]), default=1) or 1
+        s.text("Últimas 2 semanas · "+period, pad, y+36, 22, max_width=w-2*pad)
+        columns = 7 if mobile else 14
+        cell = (w-2*pad) / columns
+        grid_y = y+76
+        peak = max((day["contributionCount"] for day in days), default=1) or 1
         colors = ["#202020", "#555555", "#909090", "#cccccc", "#ffffff"]
-        for c, week in enumerate(visible):
-            for day in week["contributionDays"]:
-                count = day["contributionCount"]
-                level = 0 if not count else min(4, 1+int(3*(count/peak)**.5))
-                label = f'{day["date"]}: {count} contribuciones'
-                s.raw(f'<rect x="{pad+c*cell:.2f}" y="{grid_y+day["weekday"]*cell:.2f}" width="{cell-3:.2f}" height="{cell-3:.2f}" fill="{colors[level]}"><title>{label}</title></rect>')
-        s.text(visible[0]["contributionDays"][0]["date"], pad, grid_y+7*cell+29, 19)
-        s.text(visible[-1]["contributionDays"][-1]["date"], w-pad-123, grid_y+7*cell+29, 19)
+        for i, day in enumerate(days):
+            count = day["contributionCount"]
+            level = 0 if not count else min(4, 1+int(3*(count/peak)**.5))
+            x, top = pad+(i%columns)*cell, grid_y+(i//columns)*112
+            label = f'{day["date"]}: {count} contribuciones'
+            s.raw(f'<rect x="{x:.2f}" y="{top:.2f}" width="{cell-8:.2f}" height="58" fill="{colors[level]}"><title>{label}</title></rect>')
+            # Small neutral count tags remain readable across all intensity levels.
+            s.raw(f'<rect x="{x+8:.2f}" y="{top+12:.2f}" width="{cell-24:.2f}" height="34" fill="#000000"/>')
+            for text, baseline, size in [(str(count), top+37, 26), (day["date"][8:10]+"/"+day["date"][5:7], top+85, 19)]:
+                width = sum(GLYPHS["body"][CMAPS["body"].get(ord(c), ".notdef")].width for c in text)*size/FONTS["body"]["head"].unitsPerEm
+                s.text(text, x+(cell-8-width)/2, baseline, size)
         y += calendar_height
-    s.text("CAMBIOS EN PROYECTOS PÚBLICOS", pad, y+20, 21, max_width=w-2*pad)
+    s.text("CAMBIOS EN ESTAS 2 SEMANAS", pad, y+20, 21, max_width=w-2*pad)
     y += 48
     for commit in commits:
         s.line(pad, y, w-pad, y)

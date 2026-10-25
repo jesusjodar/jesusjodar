@@ -4,12 +4,16 @@ import importlib.util
 import re
 import unittest
 import xml.etree.ElementTree as ET
+from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("update", ROOT/"scripts/update_activity.py")
 update = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(update)
+render_spec = importlib.util.spec_from_file_location("renderer", ROOT/"scripts/render_profile.py")
+renderer = importlib.util.module_from_spec(render_spec)
+render_spec.loader.exec_module(renderer)
 
 
 class ProfileTests(unittest.TestCase):
@@ -34,9 +38,21 @@ class ProfileTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 update.normalize(data, "jesusjodar")
 
+    def test_two_week_window_uses_dates_not_calendar_week_columns(self):
+        # Sunday should include all 14 days, across three GitHub calendar columns.
+        days = [{"date": (date(2026, 10, 5)+timedelta(days=i)).isoformat(), "contributionCount": 1}
+                for i in range(21)]
+        data = {"updated_at": "2026-10-25T12:00:00Z", "calendar": {"weeks": [{"contributionDays": days}]},
+                "commits": [{"date": value} for value in ["2026-10-25T10:00:00Z", "2026-10-11T22:30:00Z", "2026-10-11T10:00:00Z"]]}
+        start, end, visible, commits = renderer.activity_window(data)
+        self.assertEqual((start, end), (date(2026, 10, 12), date(2026, 10, 25)))
+        self.assertEqual(len(visible), 14)
+        self.assertEqual(sum(d["contributionCount"] for d in visible), 14)
+        self.assertEqual(len(commits), 2)
+
     def test_assets_are_self_contained_valid_svg(self):
         files = list((ROOT/"assets").glob("*.svg"))
-        self.assertEqual(len(files), 18)
+        self.assertEqual(len(files), 20)
         for file in files:
             with self.subTest(file=file.name):
                 doc = ET.parse(file)
