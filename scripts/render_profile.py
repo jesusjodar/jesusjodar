@@ -60,11 +60,17 @@ class SVG:
                  f'<path d="M{x1} {y1}L{x2} {y2}" stroke="#ffffff" opacity="{opacity}"/>')
 
     def save(self, name):
+        mobile = "-mobile" in name
+        # Space belongs inside the opaque panel, not in GitHub's outer gutters.
+        padding = (16 if mobile else 24) if name.startswith("social-") else (32 if mobile else 48)
+        height = self.height + padding*2
         (OUT / name).write_text(
-            f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.width}" height="{self.height}" '
-            f'viewBox="0 0 {self.width} {self.height}" role="img" aria-labelledby="title desc">'
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.width}" height="{height}" '
+            f'viewBox="0 0 {self.width} {height}" role="img" aria-labelledby="title desc">'
             f'<title id="title">{escape(self.title)}</title><desc id="desc">{escape(self.description)}</desc>'
-            f'<defs>{"".join(self.defs.values())}</defs>{"".join(self.parts)}</svg>\n', encoding="utf-8")
+            f'<defs>{"".join(self.defs.values())}</defs>'
+            f'<rect width="{self.width}" height="{height}" fill="#000000"/>'
+            f'<g transform="translate(0 {padding})">{"".join(self.parts)}</g></svg>\n', encoding="utf-8")
 
 
 def abstract(s: SVG, mobile=False, ribbon=False):
@@ -123,20 +129,11 @@ def about(mobile=False):
     s.save("about-mobile.svg" if mobile else "about.svg")
 
 
-def section_header(mobile=False):
-    w, pad = (600, 38) if mobile else (1200, 70)
-    s = SVG(w, 145 if mobile else 140, "Portfolio", "Proyecto destacado")
-    s.line(pad, 20, w-pad, 20)
-    s.text("PROYECTO DESTACADO.", pad, 101, 65 if mobile else 72, "heading", max_width=w-2*pad)
-    s.save("work-mobile.svg" if mobile else "work.svg")
-
-
 def project(mobile=False):
     w, pad = (600, 38) if mobile else (1200, 70)
     h = 275 if mobile else 215
     s = SVG(w, h, "PORTFOLIO", "Portfolio personal interactivo")
-    s.raw(f'<rect x="{pad}" y="4" width="{w-pad*2}" height="{h-16}" fill="none" stroke="#ffffff" stroke-opacity=".3"/>')
-    inset = pad+28
+    inset = pad
     s.text("01 / IDENTIDAD DIGITAL", inset, 56, 20, max_width=w-2*inset)
     s.text("PORTFOLIO", inset-2, 132, 90, "heading", max_width=w-2*inset-30)
     for i, line in enumerate(["Mi espacio de diseño, desarrollo", "e ideas en la web."] if mobile else ["Mi espacio de diseño, desarrollo e ideas en la web."]):
@@ -232,7 +229,6 @@ def render(data):
     for mobile in (False, True):
         hero(mobile)
         about(mobile)
-        section_header(mobile)
         project(mobile)
         socials(mobile)
         activity(data, mobile)

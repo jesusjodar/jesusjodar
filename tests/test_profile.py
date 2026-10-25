@@ -36,7 +36,7 @@ class ProfileTests(unittest.TestCase):
 
     def test_assets_are_self_contained_valid_svg(self):
         files = list((ROOT/"assets").glob("*.svg"))
-        self.assertEqual(len(files), 20)
+        self.assertEqual(len(files), 18)
         for file in files:
             with self.subTest(file=file.name):
                 doc = ET.parse(file)
