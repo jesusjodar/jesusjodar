@@ -198,7 +198,7 @@ def activity_window(data):
 def activity(data, mobile=False):
     start, end, days, commits = activity_window(data)
     w, pad = (600, 38) if mobile else (1200, 70)
-    calendar_height = 335 if mobile else 215
+    calendar_height = 155
     row_height = 128 if mobile else 106
     height = 180 + (calendar_height if days else 0) + len(commits)*row_height + 80
     period = f"{start:%d/%m} – {end:%d/%m}"
@@ -210,22 +210,18 @@ def activity(data, mobile=False):
         total = sum(day["contributionCount"] for day in days)
         s.text(f"{total:,}".replace(",", ".")+" contribuciones visibles", pad, y, 30)
         s.text("Últimas 2 semanas · "+period, pad, y+36, 22, max_width=w-2*pad)
-        columns = 7 if mobile else 14
-        cell = (w-2*pad) / columns
+        # Two rows of seven days keep the original compact pixel treatment.
+        columns = 7
+        cell = 24 if mobile else 22
+        gap = 5
         grid_y = y+76
         peak = max((day["contributionCount"] for day in days), default=1) or 1
-        colors = ["#202020", "#555555", "#909090", "#cccccc", "#ffffff"]
         for i, day in enumerate(days):
             count = day["contributionCount"]
-            level = 0 if not count else min(4, 1+int(3*(count/peak)**.5))
-            x, top = pad+(i%columns)*cell, grid_y+(i//columns)*112
+            opacity = .09 if not count else .18+.82*(count/peak)**.5
+            x, top = pad+(i%columns)*(cell+gap), grid_y+(i//columns)*(cell+gap)
             label = f'{day["date"]}: {count} contribuciones'
-            s.raw(f'<rect x="{x:.2f}" y="{top:.2f}" width="{cell-8:.2f}" height="58" fill="{colors[level]}"><title>{label}</title></rect>')
-            # Small neutral count tags remain readable across all intensity levels.
-            s.raw(f'<rect x="{x+8:.2f}" y="{top+12:.2f}" width="{cell-24:.2f}" height="34" fill="#000000"/>')
-            for text, baseline, size in [(str(count), top+37, 26), (day["date"][8:10]+"/"+day["date"][5:7], top+85, 19)]:
-                width = sum(GLYPHS["body"][CMAPS["body"].get(ord(c), ".notdef")].width for c in text)*size/FONTS["body"]["head"].unitsPerEm
-                s.text(text, x+(cell-8-width)/2, baseline, size)
+            s.raw(f'<rect x="{x}" y="{top}" width="{cell}" height="{cell}" fill="#ffffff" fill-opacity="{opacity:.3f}"><title>{label}</title></rect>')
         y += calendar_height
     s.text("CAMBIOS EN ESTAS 2 SEMANAS", pad, y+20, 21, max_width=w-2*pad)
     y += 48
