@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-29T11:36:06+00:00",
+  "updated_at": "2026-10-30T11:28:03+00:00",
   "calendar": {
     "totalContributions": 85,
     "weeks": [
@@ -2057,6 +2057,11 @@
             "date": "2026-10-29",
             "contributionCount": 0,
             "weekday": 4
+          },
+          {
+            "date": "2026-10-30",
+            "contributionCount": 0,
+            "weekday": 5
           }
         ]
       }
@@ -2064,25 +2069,25 @@
   },
   "commits": [
     {
+      "repo": "jesusjodar/jesusjodar.github.io",
+      "sha": "50cab20f8e8c6a93b534727043616489ef9790b9",
+      "message": "Add responsive desktop and mobile layouts with development preview",
+      "date": "2026-10-29T14:19:10Z",
+      "url": "https://github.com/jesusjodar/jesusjodar.github.io/commit/50cab20f8e8c6a93b534727043616489ef9790b9"
+    },
+    {
+      "repo": "jesusjodar/jesusjodar.github.io",
+      "sha": "4e3b25fb8a9773f127d7b8b7a21e76a39b3af0d7",
+      "message": "Use Roboto Flex typography tokens and refine construction layout",
+      "date": "2026-10-29T14:10:32Z",
+      "url": "https://github.com/jesusjodar/jesusjodar.github.io/commit/4e3b25fb8a9773f127d7b8b7a21e76a39b3af0d7"
+    },
+    {
       "repo": "jesusjodar/recipes",
       "sha": "134e41c2438e030cc52c06c56dc86ca20265cdf4",
       "message": "Validate all model context budgets, retain complete traces and fix en…",
       "date": "2026-10-24T09:59:05Z",
       "url": "https://github.com/jesusjodar/recipes/commit/134e41c2438e030cc52c06c56dc86ca20265cdf4"
-    },
-    {
-      "repo": "jesusjodar/recipes",
-      "sha": "0b187ad44fa4132d0063c76332870864d798e725",
-      "message": "Add Nemotron DFlash recipe, recover benchmark logs and publish multil…",
-      "date": "2026-10-24T08:58:09Z",
-      "url": "https://github.com/jesusjodar/recipes/commit/0b187ad44fa4132d0063c76332870864d798e725"
-    },
-    {
-      "repo": "jesusjodar/jesusjodar.github.io",
-      "sha": "0bd44d0001a11cf075c34d6b47fe3b67e2e01351",
-      "message": "blog: add reflections on artificial emotions in AI",
-      "date": "2026-10-15T20:49:14Z",
-      "url": "https://github.com/jesusjodar/jesusjodar.github.io/commit/0bd44d0001a11cf075c34d6b47fe3b67e2e01351"
     }
   ]
 }
