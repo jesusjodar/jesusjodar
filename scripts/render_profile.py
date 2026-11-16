@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import io
+from PIL import Image
+import xml.etree.ElementTree as ET
 import json
 import math
 from datetime import datetime, timedelta
@@ -13,17 +17,44 @@ from zoneinfo import ZoneInfo
 from cairosvg import svg2png
 from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
+from fontTools.pens.boundsPen import BoundsPen
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "assets"
 FONTS = {
-    "heading": TTFont(OUT / "fonts/BarlowCondensed-Black.ttf"),
-    "body": TTFont(OUT / "fonts/SpaceGrotesk.ttf"),
+    "heading": TTFont(OUT / "fonts/RobotoFlex-Heading.ttf"),
+    "subtitle": TTFont(OUT / "fonts/RobotoFlex-Subtitle.ttf"),
+    "body": TTFont(OUT / "fonts/RobotoFlex-Body.ttf"),
 }
 GLYPHS = {key: font.getGlyphSet(location={"wght": 500} if key == "body" else None) for key, font in FONTS.items()}
 CMAPS = {key: font.getBestCmap() for key, font in FONTS.items()}
-SUBTITLE = "Desarrollo, investigación y diseño de interfaces de nueva generación"
+SUBTITLE = "Development, research and next-generation interface design"
 MONTHS = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"]
+
+
+def bayer_band(width, outgoing, incoming):
+    """Static 4px / 4x4 Bayer sweep matching the portfolio's Paper shader."""
+    height, pixel = 64, 4
+    matrix = [0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5]
+    def surface(hue, prefix):
+        if hue is None:
+            return f'<rect width="{width}" height="{height}" fill="#000"/>'
+        root = ET.fromstring((OUT/"website/neon-noise.svg").read_text())
+        root.set("width",str(width)); root.set("height",str(height))
+        root.set("preserveAspectRatio","xMidYMid slice")
+        ids = [node.attrib["id"] for node in root.iter() if "id" in node.attrib]
+        markup = ET.tostring(root,encoding="unicode")
+        for id in ids:
+            markup = markup.replace(f'id="{id}"',f'id="{prefix}-{id}"').replace(f'url(#{id})',f'url(#{prefix}-{id})')
+        return f'<defs><filter id="{prefix}-hue" color-interpolation-filters="sRGB"><feColorMatrix type="hueRotate" values="{hue}"/></filter></defs><g filter="url(#{prefix}-hue)">{markup}</g><rect width="{width}" height="{height}" fill="#000" opacity=".22"/>'
+    cells=[]
+    for y in range(0,height,pixel):
+        for x in range(0,width,pixel):
+            progress = (y+pixel/2)/height + .04*math.sin(x/width*math.tau)
+            threshold = (matrix[(y//pixel%4)*4+x//pixel%4]+.5)/16
+            if progress >= threshold:
+                cells.append(f'M{x} {y}h{pixel}v{pixel}h-{pixel}z')
+    return f'<defs><clipPath id="bayer-in"><path d="{"".join(cells)}" shape-rendering="crispEdges"/></clipPath></defs>'+surface(outgoing,"bayer-from")+'<g clip-path="url(#bayer-in)">'+surface(incoming,"bayer-to")+'</g>'
 
 
 class SVG:
@@ -57,6 +88,25 @@ class SVG:
         self.raw(f'<g fill="#ffffff" opacity="{opacity}" transform="translate({x} {y}) scale({scale:.6f} {-scale:.6f})">{"".join(uses)}</g>')
         return width
 
+    def fitted(self, value, x, y, width, height):
+        """Match the portfolio: fit actual glyph bounds on both axes."""
+        glyphs = GLYPHS["heading"]
+        bounds, advance = [], 0
+        for c in value:
+            glyph = glyphs[CMAPS["heading"].get(ord(c), ".notdef")]
+            pen = BoundsPen(glyphs)
+            glyph.draw(pen)
+            if pen.bounds:
+                a,b,cx,d = pen.bounds
+                bounds.append((a+advance,b,cx+advance,d))
+            advance += glyph.width
+        left=min(b[0] for b in bounds); bottom=min(b[1] for b in bounds)
+        right=max(b[2] for b in bounds); top=max(b[3] for b in bounds)
+        self.text(value, 0, 0, FONTS["heading"]["head"].unitsPerEm, "heading")
+        markup=self.parts.pop()
+        sx=width/(right-left); sy=height/(top-bottom)
+        self.raw(f'<g transform="translate({x-left*sx} {y+top*sy}) scale({sx} {sy})">{markup}</g>')
+
     def line(self, x1, y1, x2, y2, opacity=.24):
         self.raw(f'<path d="M{x1} {y1}H{x2}" stroke="#ffffff" opacity="{opacity}"/>' if y1 == y2 else
                  f'<path d="M{x1} {y1}L{x2} {y2}" stroke="#ffffff" opacity="{opacity}"/>')
@@ -64,15 +114,24 @@ class SVG:
     def save(self, name):
         mobile = "-mobile" in name
         # Space belongs inside the opaque panel, not in GitHub's outer gutters.
-        padding = (16 if mobile else 24) if name.startswith("social-") else (32 if mobile else 48)
-        height = self.height + padding*2
+        padding = 8 if name.startswith("social-") else 0
+        transition = None
+        base = name.replace("-mobile", "")
+        if base == "about.svg": transition = (None, 200)
+        elif base == "portfolio.svg": transition = (200, 100)
+        elif base == "activity.svg": transition = (100, None)
+        top_band = 63 if transition else 0
+        bottom_band = 63 if base == "hero.svg" else 0
+        band = bayer_band(self.width, *transition) if transition else ""
+        ending = f'<g transform="translate(0 {self.height-1})">{bayer_band(self.width, 0, None)}</g>' if bottom_band else ""
+        height = self.height + padding*2 + top_band + bottom_band
         (OUT / name).write_text(
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.width}" height="{height}" '
             f'viewBox="0 0 {self.width} {height}" role="img" aria-labelledby="title desc">'
             f'<title id="title">{escape(self.title)}</title><desc id="desc">{escape(self.description)}</desc>'
             f'<defs>{"".join(self.defs.values())}</defs>'
             f'<rect width="{self.width}" height="{height}" fill="#000000"/>'
-            f'<g transform="translate(0 {padding})">{"".join(self.parts)}</g></svg>\n', encoding="utf-8")
+            f'{band}<defs><clipPath id="panel-clip"><rect width="{self.width}" height="{self.height}"/></clipPath></defs><g transform="translate(0 {padding+top_band})" clip-path="url(#panel-clip)">{"".join(self.parts)}</g>{ending}</svg>\n', encoding="utf-8")
         if name.startswith("social-"):
             # Opaque raster edges avoid SVG viewport seams at fractional CSS widths.
             # Keep the editable SVG and regenerate its 3x PNG in every refresh.
@@ -81,73 +140,143 @@ class SVG:
                     background_color="#000000")
 
 
-def abstract(s: SVG, mobile=False, ribbon=False):
-    """Layered white geometry, real Gaussian blur, black-to-transparent linear mask."""
-    w, h = s.width, s.height
-    s.raw('<defs><filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>'
-          '<filter id="haze" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"/></filter>'
-          '<linearGradient id="fade"><stop offset="0" stop-color="#000000"/><stop offset=".46" stop-color="#000000" stop-opacity=".97"/>'
-          '<stop offset="1" stop-color="#000000" stop-opacity="0"/></linearGradient></defs>')
-    cx, cy = (.92*w, .46*h) if mobile else (.82*w, .48*h)
-    s.raw(f'<ellipse cx="{cx}" cy="{cy}" rx="{w*.20}" ry="{h*.26}" fill="#ffffff" opacity=".08" filter="url(#haze)"/>')
-    if ribbon:
-        for i in range(20):
-            x = w*.53 + i*w*.027
-            s.raw(f'<path d="M{x} {-h*.2}C{x-170} {h*.4} {x+230} {h*.5} {x-30} {h*1.3}" fill="none" stroke="#ffffff" stroke-width="2.5" opacity=".5" filter="url(#soft)"/>')
-    else:
-        s.raw(f'<g transform="rotate(-27 {cx} {cy})" fill="none" stroke="#ffffff">')
-        for i in range(23):
-            rx = w*.10+i*w*.009
-            s.raw(f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{rx*.72}" stroke-width="{1.5+(i%3)*.7}" opacity="{.12+(i%5)*.07}" filter="url(#soft)"/>')
-        s.raw('</g>')
-    s.raw(f'<rect width="{w}" height="{h}" fill="url(#fade)"/>')
+def abstract(s: SVG, mobile=False, ribbon=False, hue=0):
+    """Use the portfolio's real noise artwork and Vitruvian figure."""
+    background = ET.fromstring((OUT / "website/neon-noise.svg").read_text())
+    background.set("width", str(s.width))
+    background.set("height", str(s.height))
+    background.set("preserveAspectRatio", "xMidYMid slice")
+    s.raw(f'<defs><filter id="section-hue" color-interpolation-filters="sRGB"><feColorMatrix type="hueRotate" values="{hue}"/></filter></defs>')
+    s.raw('<g filter="url(#section-hue)">'+ET.tostring(background, encoding="unicode")+'</g>')
+    s.raw(f'<rect width="{s.width}" height="{s.height}" fill="#000" opacity=".22"/>')
+    if not ribbon:
+        figure = ET.fromstring((OUT / "website/side-artwork.svg").read_text())
+        figure.set("preserveAspectRatio", "xMinYMin meet")
+        figure.set("x", str(s.width * (.28 if mobile else .43)))
+        figure.set("y", str(s.height * .16))
+        figure.set("width", str(s.width * 1.35))
+        figure.set("height", str(s.height * 2.0))
+        s.raw('<defs><filter id="white-art"><feMorphology operator="dilate" radius="0.25"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"/></filter></defs>')
+        s.raw(f'<defs><clipPath id="figure-clip"><rect width="{s.width}" height="{470 if mobile else 490}"/></clipPath></defs>')
+        fade_start = s.width * (.52 if mobile else .52)
+        fade_end = s.width * (.94 if mobile else .78)
+        s.raw(f'<defs><linearGradient id="figure-fade" gradientUnits="userSpaceOnUse" x1="{fade_start}" y1="0" x2="{fade_end}" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity="1"/></linearGradient><mask id="figure-text-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="{s.width}" height="{s.height}"><rect width="{s.width}" height="{s.height}" fill="url(#figure-fade)"/></mask></defs>')
+        s.raw('<g clip-path="url(#figure-clip)" mask="url(#figure-text-mask)"><g filter="url(#white-art)">'+ET.tostring(figure, encoding="unicode")+'</g></g>')
 
 
 def hero(mobile=False):
-    w, h, pad = (600, 720, 38) if mobile else (1200, 730, 70)
-    s = SVG(w, h, "Jesús Jódar", SUBTITLE)
+    w, h, pad = (600, 465, 35) if mobile else (1200, 465, 35)
+    s = SVG(w, h, "Jesus Jodar", SUBTITLE)
     abstract(s, mobile)
-    s.text("@jesusjodar / software · IA · diseño", pad, 55, 20 if mobile else 21, max_width=w-2*pad)
-    s.line(pad, 78, w-pad, 78)
-    if mobile:
-        s.text("JESÚS", pad-3, 280, 210, "heading", max_width=w-2*pad)
-        s.text("JÓDAR.", pad-3, 478, 210, "heading", max_width=w-2*pad)
-        for line, y in zip(["Desarrollo, investigación", "y diseño de interfaces", "de nueva generación"], [558, 598, 638]):
-            s.text(line, pad, y, 30, max_width=w-2*pad)
-    else:
-        s.text("JESÚS", pad-3, 325, 270, "heading")
-        s.text("JÓDAR.", pad-3, 562, 270, "heading")
-        s.text("Desarrollo, investigación y diseño", pad, 636, 33)
-        s.text("de interfaces de nueva generación", pad, 682, 33)
+    title_width = w-2*pad if mobile else 820
+    s.fitted("JESUS", pad, 35, title_width, 190)
+    s.fitted("JODAR.", pad, 240, title_width, 190)
     s.save("hero-mobile.svg" if mobile else "hero.svg")
 
 
+ABOUT_TEXT = (
+    "I am a curious, creative person with a passion for technology, design and innovation. "
+    "I love exploring new ideas, understanding how things work and turning what I imagine into real projects. "
+    "My experience combines programming, 3D design and software development, with a particular interest in "
+    "artificial intelligence and emerging technologies. Much of what I know comes from experimenting, "
+    "researching and taking on new challenges independently. I enjoy finding original solutions, paying "
+    "attention to detail and constantly learning, always with the ambition to create things that go a little "
+    "beyond the conventional."
+)
+SKILLS = [
+    ("3D DESIGN & MODELING", "Blender, materials and rendering."),
+    ("PROGRAMMING", "Software and application development."),
+    ("ARTIFICIAL INTELLIGENCE", "LLMs, local AI and model integration."),
+    ("GAME DEVELOPMENT", "Unity and Unreal Engine."),
+    ("INTERFACE DESIGN", "UI/UX and prototyping."),
+    ("AUTOMATION", "APIs and workflows."),
+    ("SYSTEMS & HARDWARE", "Technology configuration and integration."),
+    ("PROBLEM SOLVING", "Research, creativity and self-directed learning."),
+]
+
+
+def wrap_copy(s, text, width):
+    lines, current = [], ""
+    for word in text.split():
+        candidate = (current+" "+word).strip()
+        measured = s.text(candidate, 0, 0, 36, "subtitle")
+        s.parts.pop()
+        if current and measured > width:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines
+
+
 def about(mobile=False):
-    w, pad = (600, 38) if mobile else (1200, 70)
-    s = SVG(w, 640 if mobile else 410, "Sobre mí", "Desarrollo de software, IA local, automatización, diseño 3D e interfaces expresivas.")
-    s.line(pad, 20, w-pad, 20)
-    s.text("SOBRE MÍ.", pad, 102, 67, "heading")
-    lines = (["Combino desarrollo de software,", "automatización y diseño 3D para", "convertir ideas en experiencias.", "Me interesan los agentes con", "memoria y herramientas, los modelos", "locales, las interfaces expresivas", "y las tecnologías emergentes."] if mobile else
-             ["Combino desarrollo de software, automatización y diseño 3D", "para convertir ideas en experiencias. Me interesan los agentes", "con memoria y herramientas, los modelos locales, las interfaces", "expresivas y las tecnologías emergentes."])
-    for i, line in enumerate(lines):
-        s.text(line, pad, 161+i*42, 28 if mobile else 29, max_width=w-2*pad)
-    tags = ["IA LOCAL  /  AGENTES  /  INTERFACES", "APPLE  /  BLENDER  /  VIDEOJUEGOS"]
-    for i, line in enumerate(tags):
-        s.text(line, pad, (526 if mobile else 332)+i*34, 21, max_width=w-2*pad)
+    w, pad = (600, 35) if mobile else (1200, 35)
+    s = SVG(w, 1, "About me", ABOUT_TEXT)
+    lines = wrap_copy(s, ABOUT_TEXT, w-2*pad)
+    copy_y = 340 if mobile else 430
+    skills_y = copy_y + len(lines)*46 + 35
+    columns, gutter = (1, 0) if mobile else (2, 36)
+    column_width = (w-2*pad-gutter)/columns
+    skill_rows = []
+    cursor = skills_y + 85
+    for row in range(0,len(SKILLS),columns):
+        items=[]
+        for col,(name,desc) in enumerate(SKILLS[row:row+columns]):
+            wrapped = wrap_copy(s, desc, column_width)
+            items.append((pad+col*(column_width+gutter),name,wrapped))
+        row_height = 56+22+max(len(item[2]) for item in items)*46+28
+        skill_rows.append((cursor,items))
+        cursor += row_height
+    s.height = cursor+7
+    s.parts = [f'<rect width="{w}" height="{s.height}" fill="#000"/>']
+    abstract(s, mobile, ribbon=True, hue=200)
+    s.fitted("ABOUT ME.", pad, 35, w-2*pad, 90 if mobile else 145)
+    gap = 24 if mobile else 40
+    size = (w-2*pad-gap*3)/4
+    for index,file in enumerate(sorted((OUT/"website").glob("EYE_*.png"))):
+        image = base64.b64encode(file.read_bytes()).decode()
+        s.raw(f'<image href="data:image/png;base64,{image}" x="{pad+index*(size+gap)}" y="{(145 if mobile else 200)+(index%2)*12}" width="{size}" height="170"/>')
+    for i,line in enumerate(lines):
+        s.text(line,pad,copy_y+i*46,36,"subtitle")
+    s.text("SKILLS",pad,skills_y+42,56,"heading")
+    for row_index,(y,items) in enumerate(skill_rows):
+        for col,(x,name,description) in enumerate(items):
+            width = s.text(name,0,0,36,"heading")+32
+            s.parts.pop()
+            s.text(name,x+16,y+39,36,"heading")
+            lettering = s.parts.pop().replace('fill="#ffffff"','fill="#000000"')
+            mask=f"skill-{row_index}-{col}"
+            s.raw(f'<defs><mask id="{mask}" maskUnits="userSpaceOnUse" x="{x}" y="{y}" width="{width}" height="56" style="mask-type:luminance"><rect x="{x}" y="{y}" width="{width}" height="56" fill="#fff"/>{lettering}</mask></defs>')
+            s.raw(f'<rect x="{x}" y="{y}" width="{width}" height="56" fill="#fff" mask="url(#{mask})"/>')
+            for i,line in enumerate(description):
+                s.text(line,x,y+100+i*46,36,"subtitle")
     s.save("about-mobile.svg" if mobile else "about.svg")
 
 
 def project(mobile=False):
-    w, pad = (600, 38) if mobile else (1200, 70)
-    h = 275 if mobile else 215
-    s = SVG(w, h, "PORTFOLIO", "Portfolio personal interactivo")
+    w, pad = (600, 35) if mobile else (1200, 35)
+    h = 315 if mobile else 380
+    s = SVG(w, h, "PORTFOLIO", "Interactive personal portfolio")
+    abstract(s, mobile, ribbon=True, hue=100)
     inset = pad
-    s.text("01 / IDENTIDAD DIGITAL", inset, 56, 20, max_width=w-2*inset)
-    s.text("PORTFOLIO", inset-2, 132, 90, "heading", max_width=w-2*inset-30)
-    for i, line in enumerate(["Mi espacio de diseño, desarrollo", "e ideas en la web."] if mobile else ["Mi espacio de diseño, desarrollo e ideas en la web."]):
-        s.text(line, inset, 190+i*36, 26, max_width=w-2*inset)
-    x, y = w-pad-42, 40
-    s.raw(f'<path d="M{x-14} {y+14}l18-18m-18 0h18v18" fill="none" stroke="#ffffff" stroke-width="3"/>')
+    s.fitted("PORTFOLIO", inset, 75, w-2*inset, 85 if mobile else 145)
+    icon_size, padding, gap = 26, 12, 10
+    label_width = s.text("OPEN", 0, 0, 36, "subtitle")
+    s.parts.pop()
+    button_width = padding*2 + icon_size + gap + label_width
+    button_height = icon_size + padding*2
+    bx, by = w-pad-button_width, (184 if mobile else 250)
+    lines = ["My space for design,", "development and ideas", "on the web."] if mobile else ["My space for design, development and ideas on the web."]
+    for i, line in enumerate(lines):
+        s.text(line, inset, (207 if mobile else 286)+i*42, 36, "subtitle")
+    s.text("OPEN", bx+padding+icon_size+gap, by+padding+icon_size, 36, "subtitle")
+    label = s.parts.pop().replace('fill="#ffffff"', 'fill="#000000"')
+    ax, ay = bx+padding+2, by+padding+2
+    arrow = f'<path d="M{ax} {ay+22}l22-22m-22 0h22v22" fill="none" stroke="#000" stroke-width="4"/>'
+    s.raw(f'<defs><mask id="open-cutout" maskUnits="userSpaceOnUse" x="{bx}" y="{by}" width="{button_width}" height="{button_height}" style="mask-type:luminance"><rect x="{bx}" y="{by}" width="{button_width}" height="{button_height}" fill="#fff"/>{arrow}{label}</mask></defs>')
+    s.raw(f'<rect x="{bx}" y="{by}" width="{button_width}" height="{button_height}" fill="#fff" mask="url(#open-cutout)"/>')
     s.save(f"portfolio{'-mobile' if mobile else ''}.svg")
 
 
@@ -155,18 +284,36 @@ def socials(mobile=False):
     # Equal-height image segments form one black strip, while each link stays clickable.
     # 5% leading space + four 15% buttons + 35% trailing space = 100%.
     # An inner 10px / 8px offset aligns the first icon with each panel's text.
-    width, height, button = (90, 144, 54) if mobile else (180, 144, 64)
+    width, height, button = (72, 160, 48) if mobile else (144, 200, 64)
     suffix = "-mobile" if mobile else ""
     icons = json.loads((ROOT/"data/social-icons.json").read_text())
     for name, markup in icons.items():
         s = SVG(width, height, name)
-        x, y = (8 if mobile else 10), (height-button)/2
-        s.raw(f'<g transform="translate({x} {y}) scale({button/64})">'
-              '<rect x="1" y="1" width="62" height="62" fill="none" stroke="#ffffff" stroke-width="2"/>'
-              f'{markup}</g>')
+        x, y = (width-6-button)/2, (height-button)/2
+        source = OUT / "website/icons" / f"{name}.svg"
+        if name == "linkedin":
+            document = ET.fromstring(source.read_text())
+            paths = []
+            for node in document.iter():
+                if node.tag.split("}")[-1] == "path":
+                    node.set("fill", "#000000" if node.get("fill", "").upper() == "#FFFFFF" else "#ffffff")
+                    paths.append(ET.tostring(node, encoding="unicode"))
+            icon = '<g transform="translate(12.16 12.16) scale(1.653333)">'+''.join(paths)+'</g>'
+        elif source.exists():
+            raster = Image.open(io.BytesIO(svg2png(url=str(source), output_width=160, output_height=160))).convert("RGBA")
+            ink = Image.new("RGBA", raster.size, (0, 0, 0, 0))
+            ink.putalpha(raster.getchannel("A"))
+            buffer = io.BytesIO()
+            ink.save(buffer, format="PNG")
+            encoded = base64.b64encode(buffer.getvalue()).decode()
+            icon = f'<image href="data:image/png;base64,{encoded}" x="12.16" y="12.16" width="39.68" height="39.68"/>'
+        else:
+            icon = '<g transform="translate(32 32) scale(1.42) translate(-32 -32)">'+markup.replace("#ffffff", "#000000")+'</g>'
+        s.raw(f'<rect x="1" y="1" width="{width-6}" height="{height-2}" fill="#ffffff"/>')
+        s.raw(f'<g transform="translate({x} {y}) scale({button/64})">{icon}</g>')
         s.save(f"social-{name}{suffix}.svg")
-    SVG(30 if mobile else 60, height, "").save(f"social-spacer-left{suffix}.svg")
-    SVG(210 if mobile else 420, height, "").save(f"social-spacer-right{suffix}.svg")
+    SVG(18 if mobile else 36, height, "").save(f"social-spacer-left{suffix}.svg")
+    SVG(294 if mobile else 588, height, "").save(f"social-spacer-right{suffix}.svg")
 
 
 def short_date(value):
@@ -203,45 +350,23 @@ def activity_window(data):
 
 
 def activity(data, mobile=False):
-    start, end, days, commits = activity_window(data)
-    w, pad = (600, 38) if mobile else (1200, 70)
-    calendar_height = 155
-    row_height = 128 if mobile else 106
-    height = 180 + (calendar_height if days else 0) + len(commits)*row_height + 80
-    period = f"{start:%d/%m} – {end:%d/%m}"
-    s = SVG(w, height, "Actividad en GitHub · últimas 2 semanas", "Contribuciones visibles y cambios en proyectos públicos del "+period+". Datos consultados: "+data["updated_at"])
-    s.line(pad, 20, w-pad, 20)
-    s.text("ACTIVIDAD.", pad, 108, 80, "heading")
-    y = 155
-    if days:
-        total = sum(day["contributionCount"] for day in days)
-        s.text(f"{total:,}".replace(",", ".")+" contribuciones visibles", pad, y, 30)
-        s.text("Últimas 2 semanas · "+period, pad, y+36, 22, max_width=w-2*pad)
-        # Two rows of seven days keep the original compact pixel treatment.
-        columns = 7
-        cell = 24 if mobile else 22
-        gap = 5
-        grid_y = y+76
-        peak = max((day["contributionCount"] for day in days), default=1) or 1
-        for i, day in enumerate(days):
-            count = day["contributionCount"]
-            opacity = .09 if not count else .18+.82*(count/peak)**.5
-            x, top = pad+(i%columns)*(cell+gap), grid_y+(i//columns)*(cell+gap)
-            label = f'{day["date"]}: {count} contribuciones'
-            s.raw(f'<rect x="{x}" y="{top}" width="{cell}" height="{cell}" fill="#ffffff" fill-opacity="{opacity:.3f}"><title>{label}</title></rect>')
-        y += calendar_height
-    s.text("CAMBIOS EN ESTAS 2 SEMANAS", pad, y+20, 21, max_width=w-2*pad)
-    y += 48
-    for commit in commits:
-        s.line(pad, y, w-pad, y)
-        s.text(short_date(commit["date"]), pad, y+34, 20)
-        x = pad+105
-        s.text(commit["repo"].split("/")[-1], x, y+34, 27)
-        for i, line in enumerate(fit_lines(commit["message"], 29 if mobile else 67)):
-            s.text(line, x, y+67+i*29, 22, max_width=w-pad-x)
-        y += row_height
-    stamp = datetime.fromisoformat(data["updated_at"].replace("Z", "+00:00")).strftime("%d/%m/%Y")
-    s.text("Datos de GitHub · "+stamp, pad, height-29, 20)
+    _, end, _, _ = activity_window(data)
+    w, pad = (600, 35) if mobile else (1200, 35)
+    cell = 44 if mobile else 48
+    columns = int((w-2*pad)//cell)
+    days = sorted((day for week in data["calendar"]["weeks"] for day in week["contributionDays"] if day["date"] <= end.isoformat()), key=lambda day: day["date"])[-columns*2:]
+    grid_y = 200 if mobile else 255
+    s = SVG(w, grid_y+2*cell+35, "Activity", "Public GitHub contributions")
+    s.fitted("ACTIVITY.", pad, 30, w-2*pad, 90 if mobile else 145)
+    s.text(f'{days[0]["date"]} — {days[-1]["date"]}', pad, grid_y-25, 36, "subtitle")
+    levels = {"NONE":0,"FIRST_QUARTILE":1,"SECOND_QUARTILE":2,"THIRD_QUARTILE":3,"FOURTH_QUARTILE":4}
+    peak = max((day["contributionCount"] for day in days), default=1) or 1
+    for i, day in enumerate(days):
+        count = day["contributionCount"]
+        level = levels.get(day.get("contributionLevel"), 0 if not count else min(4,max(1,math.ceil(count/peak*4))))
+        shade = round(255*[.18,.35,.55,.78,1][level])
+        x,y = pad+(i%columns)*cell, grid_y+(i//columns)*cell
+        s.raw(f'<rect x="{x}" y="{y}" width="{cell}" height="{cell}" fill="rgb({shade},{shade},{shade})" shape-rendering="crispEdges"><title>{day["date"]}: {count} contributions</title></rect>')
     s.save("activity-mobile.svg" if mobile else "activity.svg")
 
 

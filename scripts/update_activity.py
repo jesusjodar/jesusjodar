@@ -13,7 +13,7 @@ query($login: String!) {
     contributionsCollection {
       contributionCalendar {
         totalContributions
-        weeks { contributionDays { date contributionCount weekday } }
+        weeks { contributionDays { date contributionCount contributionLevel weekday } }
       }
     }
     repositories(first: 30, privacy: PUBLIC, isFork: false,

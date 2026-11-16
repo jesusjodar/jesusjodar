@@ -59,8 +59,11 @@ class ProfileTests(unittest.TestCase):
                 doc = ET.parse(file)
                 ids = {n.attrib["id"] for n in doc.iter() if "id" in n.attrib}
                 for node in doc.iter():
-                    self.assertNotIn(node.tag.split("}")[-1], ["script", "foreignObject", "image", "text"])
+                    self.assertNotIn(node.tag.split("}")[-1], ["script", "foreignObject", "text"])
                     href = node.attrib.get("href")
+                    if href and node.tag.split("}")[-1] == "image":
+                        self.assertTrue(href.startswith("data:image/png;base64,"))
+                        continue
                     if href:
                         self.assertTrue(href.startswith("#"))
                         self.assertIn(href[1:], ids)
@@ -69,7 +72,7 @@ class ProfileTests(unittest.TestCase):
         readme = (ROOT/"README.md").read_text()
         for path in re.findall(r'(?:src|srcset)="([^"]+)"', readme):
             self.assertTrue((ROOT/path).is_file(), path)
-        self.assertIn("Desarrollo, investigación y diseño de interfaces de nueva generación", readme)
+        self.assertIn("Development, research and next-generation interface design", readme)
         self.assertNotIn("Ideas que se convierten en sistemas", readme)
 
     def test_social_rasters_have_opaque_black_edges(self):
