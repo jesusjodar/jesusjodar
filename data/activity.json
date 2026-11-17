@@ -1,7 +1,7 @@
 {
-  "updated_at": "2026-11-16T17:03:07+00:00",
+  "updated_at": "2026-11-17T14:38:04+00:00",
   "calendar": {
-    "totalContributions": 89,
+    "totalContributions": 83,
     "weeks": [
       {
         "contributionDays": [
@@ -2159,8 +2159,8 @@
           },
           {
             "date": "2026-10-10",
-            "contributionCount": 1,
-            "contributionLevel": "FIRST_QUARTILE",
+            "contributionCount": 0,
+            "contributionLevel": "NONE",
             "weekday": 6
           }
         ]
@@ -2169,8 +2169,8 @@
         "contributionDays": [
           {
             "date": "2026-10-11",
-            "contributionCount": 2,
-            "contributionLevel": "FIRST_QUARTILE",
+            "contributionCount": 0,
+            "contributionLevel": "NONE",
             "weekday": 0
           },
           {
@@ -2239,7 +2239,7 @@
           },
           {
             "date": "2026-10-22",
-            "contributionCount": 3,
+            "contributionCount": 1,
             "contributionLevel": "FIRST_QUARTILE",
             "weekday": 4
           },
@@ -2359,14 +2359,14 @@
           },
           {
             "date": "2026-11-09",
-            "contributionCount": 2,
+            "contributionCount": 1,
             "contributionLevel": "FIRST_QUARTILE",
             "weekday": 1
           },
           {
             "date": "2026-11-10",
-            "contributionCount": 1,
-            "contributionLevel": "FIRST_QUARTILE",
+            "contributionCount": 0,
+            "contributionLevel": "NONE",
             "weekday": 2
           },
           {
@@ -2408,6 +2408,12 @@
             "contributionCount": 1,
             "contributionLevel": "FIRST_QUARTILE",
             "weekday": 1
+          },
+          {
+            "date": "2026-11-17",
+            "contributionCount": 1,
+            "contributionLevel": "FIRST_QUARTILE",
+            "weekday": 2
           }
         ]
       }
@@ -2416,17 +2422,17 @@
   "commits": [
     {
       "repo": "jesusjodar/jesusjodar.github.io",
-      "sha": "20e89a44c2bf23be444ae61b1cb6267fa4094f51",
-      "message": "style: add social icon hover and press states",
-      "date": "2026-11-16T16:34:38Z",
-      "url": "https://github.com/jesusjodar/jesusjodar.github.io/commit/20e89a44c2bf23be444ae61b1cb6267fa4094f51"
+      "sha": "53a93ef24e030c2492b5fb92fabd62fc49ee2abe",
+      "message": "fix: fit section titles to the full available width",
+      "date": "2026-11-17T14:33:21Z",
+      "url": "https://github.com/jesusjodar/jesusjodar.github.io/commit/53a93ef24e030c2492b5fb92fabd62fc49ee2abe"
     },
     {
       "repo": "jesusjodar/jesusjodar.github.io",
-      "sha": "1d7656271dba13981055031d936e8f93e73f2a7b",
-      "message": "feat: add animated eyes to visual identity section",
-      "date": "2026-11-16T16:34:38Z",
-      "url": "https://github.com/jesusjodar/jesusjodar.github.io/commit/1d7656271dba13981055031d936e8f93e73f2a7b"
+      "sha": "bd2a160379e7b2e8c7f054e4a76bc8303761b331",
+      "message": "feat: align portfolio copy with personal profile",
+      "date": "2026-11-16T17:35:34Z",
+      "url": "https://github.com/jesusjodar/jesusjodar.github.io/commit/bd2a160379e7b2e8c7f054e4a76bc8303761b331"
     },
     {
       "repo": "jesusjodar/recipes",
